@@ -1,10 +1,8 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html>
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="theme-color" content="#000000">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Для тебя ♡</title>
 
   <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
@@ -16,168 +14,128 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
-      background: #000;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
-    #hint {
+    #replayButton {
       position: fixed;
-      z-index: 9999;
-      top: max(22px, env(safe-area-inset-top));
+      z-index: 99999;
       left: 50%;
+      bottom: 35px;
       transform: translateX(-50%);
-      padding: 10px 15px;
-      border-radius: 999px;
-      background: rgba(0,0,0,.62);
-      color: #fff;
-      font-size: 14px;
-      white-space: nowrap;
-      display: none;
-      pointer-events: none;
-    }
-
-    #replay {
-      position: fixed;
-      z-index: 10000;
-      left: 50%;
-      bottom: max(30px, env(safe-area-inset-bottom));
-      transform: translateX(-50%);
-      border: 0;
-      border-radius: 999px;
+      border: none;
+      border-radius: 100px;
       padding: 14px 22px;
-      background: rgba(15,15,15,.82);
-      color: #fff;
-      font: 15px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: rgba(0,0,0,0.75);
+      color: white;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 15px;
       display: none;
-      box-shadow: 0 5px 24px rgba(0,0,0,.20);
       -webkit-tap-highlight-color: transparent;
     }
   </style>
 </head>
 
 <body>
-  <div id="hint">Наведи камеру на фотографию ♡</div>
-  <button id="replay">Проиграть ещё раз ♡</button>
 
-  <!--
-    ВАЖНО: autoStart НЕ отключаем.
-    Именно этот режим уже стабильно показывал камеру на твоём iPhone.
-  -->
-  <a-scene
-    mindar-image="
-      imageTargetSrc: ./targets.mind;
-      filterMinCF: 0.001;
-      filterBeta: 0.001;
-      warmupTolerance: 5;
-      missTolerance: 10;
-      uiLoading: yes;
-      uiScanning: no;
-      uiError: yes;
-    "
-    embedded
-    color-space="sRGB"
-    renderer="colorManagement: true; physicallyCorrectLights: true; antialias: true;"
-    vr-mode-ui="enabled: false"
-    device-orientation-permission-ui="enabled: false"
-  >
-    <a-assets timeout="20000">
-      <video
-        id="video"
-        src="./video.mp4"
-        preload="auto"
-        playsinline
-        webkit-playsinline
-        muted
-      ></video>
-    </a-assets>
+<button id="replayButton">Проиграть ещё раз ♡</button>
 
-    <a-camera
-      position="0 0 0"
-      look-controls="enabled: false">
-    </a-camera>
+<a-scene
+  mindar-image="
+    imageTargetSrc: ./targets.mind;
+    filterMinCF: 0.001;
+    filterBeta: 0.001;
+    warmupTolerance: 5;
+    missTolerance: 10;
+  "
+  embedded
+  color-space="sRGB"
+  renderer="colorManagement: true; physicallyCorrectLights: true;"
+  vr-mode-ui="enabled: false"
+  device-orientation-permission-ui="enabled: false"
+>
+  <a-assets>
+    <video
+      id="video"
+      src="./video.mp4"
+      preload="auto"
+      playsinline
+      webkit-playsinline
+      muted
+    ></video>
+  </a-assets>
 
-    <a-entity
-      id="target"
-      mindar-image-target="targetIndex: 0">
+  <a-camera
+    position="0 0 0"
+    look-controls="enabled: false">
+  </a-camera>
 
-      <a-video
-        src="#video"
-        width="1"
-        height="1.7777778"
-        position="0 0 0.01">
-      </a-video>
+  <a-entity
+    id="target"
+    mindar-image-target="targetIndex: 0">
 
-    </a-entity>
-  </a-scene>
+    <a-video
+      src="#video"
+      width="1"
+      height="1.7778"
+      position="0 0 0.01">
+    </a-video>
 
-  <script>
-    const scene = document.querySelector("a-scene");
-    const target = document.querySelector("#target");
-    const video = document.querySelector("#video");
-    const hint = document.querySelector("#hint");
-    const replay = document.querySelector("#replay");
+  </a-entity>
+</a-scene>
 
-    let targetVisible = false;
-    let hasStarted = false;
+<script>
+  const target = document.querySelector("#target");
+  const video = document.querySelector("#video");
+  const replayButton = document.querySelector("#replayButton");
 
-    scene.addEventListener("arReady", () => {
-      hint.style.display = "block";
-    });
+  let hasPlayed = false;
 
-    target.addEventListener("targetFound", async () => {
-      targetVisible = true;
-      hint.style.display = "none";
-
-      // Первый раз запускаем автоматически и только один раз.
-      if (!hasStarted) {
-        hasStarted = true;
-        replay.style.display = "none";
-        video.currentTime = 0;
-
-        // muted оставлен намеренно: так iPhone надежно разрешает autoplay.
-        try {
-          await video.play();
-        } catch (e) {
-          console.log("Video autoplay error:", e);
-        }
-      } else if (!video.ended && video.paused) {
-        // Если фотография лишь ненадолго потерялась,
-        // продолжаем с того же места, а не начинаем заново.
-        try {
-          await video.play();
-        } catch (e) {}
-      }
-    });
-
-    target.addEventListener("targetLost", () => {
-      targetVisible = false;
-      hint.style.display = "block";
-
-      if (!video.paused && !video.ended) {
-        video.pause();
-      }
-    });
-
-    video.addEventListener("ended", () => {
-      replay.style.display = "block";
-    });
-
-    replay.addEventListener("click", async () => {
-      if (!targetVisible) {
-        hint.style.display = "block";
-        return;
-      }
-
-      replay.style.display = "none";
+  target.addEventListener("targetFound", async () => {
+    // Первый показ фотографии — запускаем ролик один раз.
+    if (!hasPlayed) {
+      hasPlayed = true;
       video.currentTime = 0;
+      replayButton.style.display = "none";
 
       try {
         await video.play();
-      } catch (e) {
-        console.log("Replay error:", e);
-        replay.style.display = "block";
+      } catch (error) {
+        console.log(error);
       }
-    });
-  </script>
+    } else if (!video.ended && video.paused) {
+      // Если трекинг кратко потерял фотографию — продолжаем,
+      // а не начинаем видео заново.
+      try {
+        await video.play();
+      } catch (error) {
+        console.log(error);
+      }
+    }
+  });
+
+  target.addEventListener("targetLost", () => {
+    // Пауза помогает не проигрывать ролик, пока фото не в кадре.
+    if (!video.paused && !video.ended) {
+      video.pause();
+    }
+  });
+
+  video.addEventListener("ended", () => {
+    replayButton.style.display = "block";
+  });
+
+  replayButton.addEventListener("click", async () => {
+    replayButton.style.display = "none";
+    video.currentTime = 0;
+
+    try {
+      await video.play();
+    } catch (error) {
+      console.log(error);
+      replayButton.style.display = "block";
+    }
+  });
+</script>
+
 </body>
 </html>
