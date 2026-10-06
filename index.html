@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#000000">
   <title>Для тебя ♡</title>
 
@@ -19,65 +20,16 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
-    #start {
-      position: fixed;
-      inset: 0;
-      z-index: 10000;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 28px;
-      box-sizing: border-box;
-      background: #fffaf8;
-      text-align: center;
-    }
-
-    .card {
-      max-width: 360px;
-    }
-
-    .heart {
-      font-size: 30px;
-      margin-bottom: 14px;
-    }
-
-    h1 {
-      margin: 0 0 10px;
-      font-size: 28px;
-      font-weight: 650;
-    }
-
-    p {
-      margin: 0 0 24px;
-      font-size: 15px;
-      line-height: 1.5;
-      opacity: .62;
-    }
-
-    button {
-      border: 0;
-      border-radius: 999px;
-      padding: 15px 24px;
-      background: rgba(15,15,15,.88);
-      color: #fff;
-      font: inherit;
-      font-size: 15px;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    #hint, #replay {
+    #hint {
       position: fixed;
       z-index: 9999;
+      top: max(22px, env(safe-area-inset-top));
       left: 50%;
       transform: translateX(-50%);
-    }
-
-    #hint {
-      top: max(22px, env(safe-area-inset-top));
       padding: 10px 15px;
       border-radius: 999px;
       background: rgba(0,0,0,.62);
-      color: white;
+      color: #fff;
       font-size: 14px;
       white-space: nowrap;
       display: none;
@@ -85,42 +37,42 @@
     }
 
     #replay {
-      bottom: max(28px, env(safe-area-inset-bottom));
+      position: fixed;
+      z-index: 10000;
+      left: 50%;
+      bottom: max(30px, env(safe-area-inset-bottom));
+      transform: translateX(-50%);
+      border: 0;
+      border-radius: 999px;
+      padding: 14px 22px;
+      background: rgba(15,15,15,.82);
+      color: #fff;
+      font: 15px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       display: none;
-      box-shadow: 0 5px 24px rgba(0,0,0,.18);
-    }
-
-    /* Скрываем стандартный интерфейс MindAR — оставляем только наш */
-    .mindar-ui-overlay {
-      display: none !important;
+      box-shadow: 0 5px 24px rgba(0,0,0,.20);
+      -webkit-tap-highlight-color: transparent;
     }
   </style>
 </head>
 
 <body>
-  <div id="start">
-    <div class="card">
-      <div class="heart">♡</div>
-      <h1>Для тебя</h1>
-      <p>Нажми кнопку, разреши доступ к камере и наведи iPhone на нашу фотографию.</p>
-      <button id="startButton">Оживить фотографию ♡</button>
-    </div>
-  </div>
-
   <div id="hint">Наведи камеру на фотографию ♡</div>
   <button id="replay">Проиграть ещё раз ♡</button>
 
+  <!--
+    ВАЖНО: autoStart НЕ отключаем.
+    Именно этот режим уже стабильно показывал камеру на твоём iPhone.
+  -->
   <a-scene
     mindar-image="
       imageTargetSrc: ./targets.mind;
-      autoStart: false;
       filterMinCF: 0.001;
       filterBeta: 0.001;
       warmupTolerance: 5;
       missTolerance: 10;
-      uiLoading: no;
+      uiLoading: yes;
       uiScanning: no;
-      uiError: no;
+      uiError: yes;
     "
     embedded
     color-space="sRGB"
@@ -135,21 +87,26 @@
         preload="auto"
         playsinline
         webkit-playsinline
-        crossorigin="anonymous"
+        muted
       ></video>
     </a-assets>
 
-    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+    <a-camera
+      position="0 0 0"
+      look-controls="enabled: false">
+    </a-camera>
 
-    <a-entity id="target" mindar-image-target="targetIndex: 0">
-      <!-- Фото и видео 9:16 -->
+    <a-entity
+      id="target"
+      mindar-image-target="targetIndex: 0">
+
       <a-video
-        id="videoPlane"
         src="#video"
         width="1"
         height="1.7777778"
-        position="0 0 0.01"
-      ></a-video>
+        position="0 0 0.01">
+      </a-video>
+
     </a-entity>
   </a-scene>
 
@@ -157,74 +114,38 @@
     const scene = document.querySelector("a-scene");
     const target = document.querySelector("#target");
     const video = document.querySelector("#video");
-    const start = document.querySelector("#start");
-    const startButton = document.querySelector("#startButton");
     const hint = document.querySelector("#hint");
     const replay = document.querySelector("#replay");
 
     let targetVisible = false;
-    let hasPlayed = false;
-    let starting = false;
+    let hasStarted = false;
 
-    async function unlockVideo() {
-      // На iPhone этот вызов происходит непосредственно после нажатия пользователя.
-      // Это помогает разрешить последующее воспроизведение со звуком.
-      try {
-        video.muted = false;
-        video.volume = 1;
-        await video.play();
-        video.pause();
-        video.currentTime = 0;
-      } catch (e) {
-        // Если Safari всё равно запретил звук, AR продолжит работать.
-        video.pause();
-        video.currentTime = 0;
-      }
-    }
-
-    startButton.addEventListener("click", async () => {
-      if (starting) return;
-      starting = true;
-
-      startButton.disabled = true;
-      startButton.textContent = "Запускаю…";
-
-      try {
-        await unlockVideo();
-
-        const arSystem = scene.systems["mindar-image-system"];
-        if (!arSystem) throw new Error("MindAR ещё не готов");
-
-        await arSystem.start();
-
-        start.style.display = "none";
-        hint.style.display = "block";
-      } catch (e) {
-        console.error(e);
-        starting = false;
-        startButton.disabled = false;
-        startButton.textContent = "Попробовать ещё раз";
-      }
+    scene.addEventListener("arReady", () => {
+      hint.style.display = "block";
     });
 
     target.addEventListener("targetFound", async () => {
       targetVisible = true;
       hint.style.display = "none";
 
-      if (!hasPlayed) {
-        hasPlayed = true;
+      // Первый раз запускаем автоматически и только один раз.
+      if (!hasStarted) {
+        hasStarted = true;
         replay.style.display = "none";
         video.currentTime = 0;
 
+        // muted оставлен намеренно: так iPhone надежно разрешает autoplay.
         try {
-          video.muted = false;
           await video.play();
         } catch (e) {
-          // Fallback для более строгих версий Safari:
-          // видео всё равно запускается, но без звука.
-          video.muted = true;
-          try { await video.play(); } catch (_) {}
+          console.log("Video autoplay error:", e);
         }
+      } else if (!video.ended && video.paused) {
+        // Если фотография лишь ненадолго потерялась,
+        // продолжаем с того же места, а не начинаем заново.
+        try {
+          await video.play();
+        } catch (e) {}
       }
     });
 
@@ -249,13 +170,12 @@
 
       replay.style.display = "none";
       video.currentTime = 0;
-      video.muted = false;
 
       try {
         await video.play();
       } catch (e) {
-        video.muted = true;
-        try { await video.play(); } catch (_) {}
+        console.log("Replay error:", e);
+        replay.style.display = "block";
       }
     });
   </script>
