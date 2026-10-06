@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>For you ♡</title>
+
+  <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    #start {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+
+      background: #fffaf8;
+      text-align: center;
+    }
+
+    #start h1 {
+      font-size: 26px;
+      font-weight: 500;
+      margin-bottom: 10px;
+    }
+
+    #start p {
+      font-size: 15px;
+      opacity: 0.65;
+      margin-bottom: 25px;
+    }
+
+    #startButton {
+      border: none;
+      background: #111;
+      color: white;
+
+      padding: 15px 25px;
+      border-radius: 30px;
+
+      font-size: 16px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+
+<body>
+
+<div id="start">
+
+  <h1>Для тебя ♡</h1>
+
+  <p>
+    Нажми кнопку и наведи камеру<br>
+    на нашу фотографию
+  </p>
+
+  <button id="startButton">
+    Оживить фотографию
+  </button>
+
+</div>
+
+
+<a-scene
+  mindar-image="imageTargetSrc: ./targets.mind; autoStart: false;"
+  color-space="sRGB"
+  renderer="colorManagement: true, physicallyCorrectLights"
+  vr-mode-ui="enabled: false"
+  device-orientation-permission-ui="enabled: false"
+>
+
+  <a-assets>
+
+    <video
+      id="arVideo"
+      src="./video.mp4"
+      preload="auto"
+      loop
+      playsinline
+      webkit-playsinline
+      crossorigin="anonymous"
+    ></video>
+
+  </a-assets>
+
+
+  <a-camera
+    position="0 0 0"
+    look-controls="enabled: false"
+  ></a-camera>
+
+
+  <a-entity
+    id="target"
+    mindar-image-target="targetIndex: 0"
+  >
+
+    <a-video
+      src="#arVideo"
+      position="0 0 0"
+      width="1"
+      height="1.7778"
+    ></a-video>
+
+  </a-entity>
+
+</a-scene>
+
+
+<script>
+
+const scene = document.querySelector("a-scene");
+const video = document.querySelector("#arVideo");
+const target = document.querySelector("#target");
+const startScreen = document.querySelector("#start");
+const button = document.querySelector("#startButton");
+
+
+button.addEventListener("click", async () => {
+
+  startScreen.style.display = "none";
+
+  const arSystem = scene.systems["mindar-image-system"];
+
+  arSystem.start();
+
+});
+
+
+target.addEventListener("targetFound", () => {
+
+  video.play();
+
+});
+
+
+target.addEventListener("targetLost", () => {
+
+  video.pause();
+
+});
+
+</script>
+
+</body>
+</html>
