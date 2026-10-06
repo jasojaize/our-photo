@@ -1,11 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
   <meta charset="UTF-8">
-
-  <meta name="viewport"
-        content="width=device-width, initial-scale=1.0">
-
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
   <title>Для тебя ♡</title>
 
   <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
@@ -17,131 +15,249 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
+      background: #000;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
-    #soundButton {
+    #start {
       position: fixed;
-      z-index: 99999;
-      left: 50%;
-      bottom: 35px;
-      transform: translateX(-50%);
+      inset: 0;
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 28px;
+      box-sizing: border-box;
+      background: #fffaf8;
+      text-align: center;
+    }
 
-      border: none;
-      border-radius: 100px;
+    .card {
+      max-width: 360px;
+    }
 
-      padding: 14px 22px;
+    .heart {
+      font-size: 30px;
+      margin-bottom: 14px;
+    }
 
-      background: rgba(0,0,0,0.75);
-      color: white;
+    h1 {
+      margin: 0 0 10px;
+      font-size: 28px;
+      font-weight: 650;
+    }
 
-      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    p {
+      margin: 0 0 24px;
       font-size: 15px;
+      line-height: 1.5;
+      opacity: .62;
+    }
 
+    button {
+      border: 0;
+      border-radius: 999px;
+      padding: 15px 24px;
+      background: rgba(15,15,15,.88);
+      color: #fff;
+      font: inherit;
+      font-size: 15px;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    #hint, #replay {
+      position: fixed;
+      z-index: 9999;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    #hint {
+      top: max(22px, env(safe-area-inset-top));
+      padding: 10px 15px;
+      border-radius: 999px;
+      background: rgba(0,0,0,.62);
+      color: white;
+      font-size: 14px;
+      white-space: nowrap;
       display: none;
+      pointer-events: none;
+    }
+
+    #replay {
+      bottom: max(28px, env(safe-area-inset-bottom));
+      display: none;
+      box-shadow: 0 5px 24px rgba(0,0,0,.18);
+    }
+
+    /* Скрываем стандартный интерфейс MindAR — оставляем только наш */
+    .mindar-ui-overlay {
+      display: none !important;
     }
   </style>
 </head>
 
 <body>
+  <div id="start">
+    <div class="card">
+      <div class="heart">♡</div>
+      <h1>Для тебя</h1>
+      <p>Нажми кнопку, разреши доступ к камере и наведи iPhone на нашу фотографию.</p>
+      <button id="startButton">Оживить фотографию ♡</button>
+    </div>
+  </div>
 
-<button id="soundButton">
-  Включить звук ♡
-</button>
+  <div id="hint">Наведи камеру на фотографию ♡</div>
+  <button id="replay">Проиграть ещё раз ♡</button>
 
+  <a-scene
+    mindar-image="
+      imageTargetSrc: ./targets.mind;
+      autoStart: false;
+      filterMinCF: 0.001;
+      filterBeta: 0.001;
+      warmupTolerance: 5;
+      missTolerance: 10;
+      uiLoading: no;
+      uiScanning: no;
+      uiError: no;
+    "
+    embedded
+    color-space="sRGB"
+    renderer="colorManagement: true; physicallyCorrectLights: true; antialias: true;"
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false"
+  >
+    <a-assets timeout="20000">
+      <video
+        id="video"
+        src="./video.mp4"
+        preload="auto"
+        playsinline
+        webkit-playsinline
+        crossorigin="anonymous"
+      ></video>
+    </a-assets>
 
-<a-scene
-  mindar-image="imageTargetSrc: ./targets.mind;"
-  embedded
-  color-space="sRGB"
-  renderer="colorManagement: true; physicallyCorrectLights: true;"
-  vr-mode-ui="enabled: false"
-  device-orientation-permission-ui="enabled: false"
->
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-  <a-assets>
+    <a-entity id="target" mindar-image-target="targetIndex: 0">
+      <!-- Фото и видео 9:16 -->
+      <a-video
+        id="videoPlane"
+        src="#video"
+        width="1"
+        height="1.7777778"
+        position="0 0 0.01"
+      ></a-video>
+    </a-entity>
+  </a-scene>
 
-    <video
-      id="video"
-      src="./video.mp4"
-      preload="auto"
-      playsinline
-      webkit-playsinline
-      muted
-    ></video>
+  <script>
+    const scene = document.querySelector("a-scene");
+    const target = document.querySelector("#target");
+    const video = document.querySelector("#video");
+    const start = document.querySelector("#start");
+    const startButton = document.querySelector("#startButton");
+    const hint = document.querySelector("#hint");
+    const replay = document.querySelector("#replay");
 
-  </a-assets>
+    let targetVisible = false;
+    let hasPlayed = false;
+    let starting = false;
 
+    async function unlockVideo() {
+      // На iPhone этот вызов происходит непосредственно после нажатия пользователя.
+      // Это помогает разрешить последующее воспроизведение со звуком.
+      try {
+        video.muted = false;
+        video.volume = 1;
+        await video.play();
+        video.pause();
+        video.currentTime = 0;
+      } catch (e) {
+        // Если Safari всё равно запретил звук, AR продолжит работать.
+        video.pause();
+        video.currentTime = 0;
+      }
+    }
 
-  <a-camera
-    position="0 0 0"
-    look-controls="enabled: false">
-  </a-camera>
+    startButton.addEventListener("click", async () => {
+      if (starting) return;
+      starting = true;
 
+      startButton.disabled = true;
+      startButton.textContent = "Запускаю…";
 
-  <a-entity
-    id="target"
-    mindar-image-target="targetIndex: 0">
+      try {
+        await unlockVideo();
 
-    <a-video
-      src="#video"
-      width="1"
-      height="1.7778"
-      position="0 0 0.01">
-    </a-video>
+        const arSystem = scene.systems["mindar-image-system"];
+        if (!arSystem) throw new Error("MindAR ещё не готов");
 
-  </a-entity>
+        await arSystem.start();
 
-</a-scene>
+        start.style.display = "none";
+        hint.style.display = "block";
+      } catch (e) {
+        console.error(e);
+        starting = false;
+        startButton.disabled = false;
+        startButton.textContent = "Попробовать ещё раз";
+      }
+    });
 
+    target.addEventListener("targetFound", async () => {
+      targetVisible = true;
+      hint.style.display = "none";
 
-<script>
+      if (!hasPlayed) {
+        hasPlayed = true;
+        replay.style.display = "none";
+        video.currentTime = 0;
 
-const target = document.querySelector("#target");
-const video = document.querySelector("#video");
-const soundButton = document.querySelector("#soundButton");
+        try {
+          video.muted = false;
+          await video.play();
+        } catch (e) {
+          // Fallback для более строгих версий Safari:
+          // видео всё равно запускается, но без звука.
+          video.muted = true;
+          try { await video.play(); } catch (_) {}
+        }
+      }
+    });
 
+    target.addEventListener("targetLost", () => {
+      targetVisible = false;
+      hint.style.display = "block";
 
-target.addEventListener("targetFound", async () => {
+      if (!video.paused && !video.ended) {
+        video.pause();
+      }
+    });
 
-  video.currentTime = 0;
-  video.muted = true;
+    video.addEventListener("ended", () => {
+      replay.style.display = "block";
+    });
 
-  try {
-    await video.play();
-  } catch(error) {
-    console.log(error);
-  }
+    replay.addEventListener("click", async () => {
+      if (!targetVisible) {
+        hint.style.display = "block";
+        return;
+      }
 
-  soundButton.style.display = "block";
+      replay.style.display = "none";
+      video.currentTime = 0;
+      video.muted = false;
 
-});
-
-
-target.addEventListener("targetLost", () => {
-
-  video.pause();
-  video.currentTime = 0;
-
-  soundButton.style.display = "none";
-
-});
-
-
-soundButton.addEventListener("click", async () => {
-
-  video.muted = false;
-
-  try {
-    await video.play();
-  } catch(error) {
-    console.log(error);
-  }
-
-  soundButton.style.display = "none";
-
-});
-
-</script>
-
+      try {
+        await video.play();
+      } catch (e) {
+        video.muted = true;
+        try { await video.play(); } catch (_) {}
+      }
+    });
+  </script>
 </body>
 </html>
